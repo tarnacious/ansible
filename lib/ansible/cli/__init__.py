@@ -111,12 +111,16 @@ class CLI(with_metaclass(ABCMeta, object)):
     @staticmethod
     def build_vault_ids(vault_ids, vault_password_files=None,
                         ask_vault_pass=None, create_new_password=None,
-                        auto_prompt=True):
+                        auto_prompt=True, encrypt_vault_id=None):
         vault_password_files = vault_password_files or []
         vault_ids = vault_ids or []
 
         # convert vault_password_files into vault_ids slugs
         for password_file in vault_password_files:
+            if encrypt_vault_id:
+                id_slug = u'%s@%s' % (encrypt_vault_id, password_file)
+                vault_ids.append(id_slug)
+
             id_slug = u'%s@%s' % (C.DEFAULT_VAULT_IDENTITY, password_file)
 
             # note this makes --vault-id higher precedence than --vault-password-file
@@ -138,7 +142,7 @@ class CLI(with_metaclass(ABCMeta, object)):
     @staticmethod
     def setup_vault_secrets(loader, vault_ids, vault_password_files=None,
                             ask_vault_pass=None, create_new_password=False,
-                            auto_prompt=True):
+                            auto_prompt=True, encrypt_vault_id=None):
         # list of tuples
         vault_secrets = []
 
@@ -169,7 +173,9 @@ class CLI(with_metaclass(ABCMeta, object)):
                                         vault_password_files,
                                         ask_vault_pass,
                                         create_new_password,
-                                        auto_prompt=auto_prompt)
+                                        auto_prompt=auto_prompt,
+                                        encrypt_vault_id=encrypt_vault_id)
+
 
         for vault_id_slug in vault_ids:
             vault_id_name, vault_id_value = CLI.split_vault_id(vault_id_slug)
