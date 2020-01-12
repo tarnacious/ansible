@@ -372,9 +372,8 @@ class TestCliSetupVaultSecrets(unittest.TestCase):
                                                     vault_id='default')
 
         res = cli.CLI.setup_vault_secrets(loader=self.fake_loader,
-                                          vault_ids=['some_vault_id@prompt_ask_vault_pass'],
-                                          create_new_password=True,
-                                          ask_vault_pass=True)
+                                          encrypt_vault_id='some_vault_id',
+                                          vault_ids=['some_vault_id@prompt_ask_vault_pass'])
 
         self.assertIsInstance(res, list)
         match = vault.match_secrets(res, ['some_vault_id'])[0][1]

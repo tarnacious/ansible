@@ -100,9 +100,8 @@ class CLI(with_metaclass(ABCMeta, object)):
     @staticmethod
     def split_vault_id(vault_id):
         # return (before_@, after_@)
-        # if no @, return whole string as after_
         if '@' not in vault_id:
-            return (None, vault_id)
+            return (vault_id, None)
 
         parts = vault_id.split('@', 1)
         ret = tuple(parts)
@@ -111,17 +110,30 @@ class CLI(with_metaclass(ABCMeta, object)):
     @staticmethod
     def build_vault_ids(vault_ids, vault_password_files=None,
                         ask_vault_pass=None, create_new_password=None,
-                        auto_prompt=True):
+                        auto_prompt=True, encrypt_vault_id=None):
         vault_password_files = vault_password_files or []
         vault_ids = vault_ids or []
 
         # convert vault_password_files into vault_ids slugs
+        # note these slugs are appended to the vault_ids so --vault-id higher precedence than
+        # --vault-password-file if we want to intertwingle them in order
+        # probably need a cli callback to populate vault_ids used by --vault-id
+        # and --vault-password-file
         for password_file in vault_password_files:
+            # if encrypt_vault_id is present, then try fetching from password_file
+            if encrypt_vault_id:
+                id_slug = u'%s@%s' % (encrypt_vault_id, password_file)
+                vault_ids.append(id_slug)
+
+            # if vault_id without @ part, then try fetching from password_file
+            for vault_id in vault_ids:
+                vault_id_parts = vault_id.split("@")
+                if len(vault_id_parts) == 1:
+                    id_slug = u'%s@%s' % (vault_id_parts[0], password_file)
+                    vault_ids.append(id_slug)
+
             id_slug = u'%s@%s' % (C.DEFAULT_VAULT_IDENTITY, password_file)
 
-            # note this makes --vault-id higher precedence than --vault-password-file
-            # if we want to intertwingle them in order probably need a cli callback to populate vault_ids
-            # used by --vault-id and --vault-password-file
             vault_ids.append(id_slug)
 
         # if an action needs an encrypt password (create_new_password=True) and we dont
@@ -138,7 +150,7 @@ class CLI(with_metaclass(ABCMeta, object)):
     @staticmethod
     def setup_vault_secrets(loader, vault_ids, vault_password_files=None,
                             ask_vault_pass=None, create_new_password=False,
-                            auto_prompt=True):
+                            auto_prompt=True, encrypt_vault_id=None):
         # list of tuples
         vault_secrets = []
 
@@ -165,14 +177,33 @@ class CLI(with_metaclass(ABCMeta, object)):
             # The format when we use just --ask-vault-pass needs to match 'Vault password:\s*?$'
             prompt_formats['prompt_ask_vault_pass'] = ['Vault password: ']
 
+
         vault_ids = CLI.build_vault_ids(vault_ids,
                                         vault_password_files,
                                         ask_vault_pass,
                                         create_new_password,
-                                        auto_prompt=auto_prompt)
+                                        auto_prompt=auto_prompt,
+                                        encrypt_vault_id=encrypt_vault_id)
+
 
         for vault_id_slug in vault_ids:
             vault_id_name, vault_id_value = CLI.split_vault_id(vault_id_slug)
+
+            if not vault_id_value:
+                if len(vault_password_files) != 0:
+                    # skip is not vault_id_value is return, if vault password
+                    # files have been specified then slugs have been added that
+                    # will be checked later in the loop
+                    continue
+                else:
+                    # if no vault password files have been specified then use
+                    # the vault_id_name as a pasword file as this was the
+                    # previous functionality
+                    vault_id_value = vault_id_name
+                    # note the vault_id_name is also not used as a vault_id as
+                    # this is how it previously worked
+                    vault_id_name = None
+
             if vault_id_value in ['prompt', 'prompt_ask_vault_pass']:
 
                 # --vault-id some_name@prompt_ask_vault_pass --vault-id other_name@prompt_ask_vault_pass will be a little

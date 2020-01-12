@@ -168,18 +168,17 @@ class VaultCLI(CLI):
 
         if action in ['encrypt', 'encrypt_string', 'create']:
 
-            encrypt_vault_id = None
-            # no --encrypt-vault-id context.CLIARGS['encrypt_vault_id'] for 'edit'
-            if action not in ['edit']:
-                encrypt_vault_id = context.CLIARGS['encrypt_vault_id'] or C.DEFAULT_VAULT_ENCRYPT_IDENTITY
+            encrypt_vault_id = context.CLIARGS['encrypt_vault_id'] or C.DEFAULT_VAULT_ENCRYPT_IDENTITY
 
             vault_secrets = None
             vault_secrets = \
                 self.setup_vault_secrets(loader,
-                                         vault_ids=vault_ids,
+                                         vault_ids=vault_ids + [],
                                          vault_password_files=list(context.CLIARGS['vault_password_files']),
                                          ask_vault_pass=context.CLIARGS['ask_vault_pass'],
-                                         create_new_password=True)
+                                         create_new_password=True,
+                                         encrypt_vault_id=encrypt_vault_id
+                                         )
 
             if len(vault_secrets) > 1 and not encrypt_vault_id:
                 raise AnsibleOptionsError("The vault-ids %s are available to encrypt. Specify the vault-id to encrypt with --encrypt-vault-id" %
@@ -216,9 +215,10 @@ class VaultCLI(CLI):
             new_vault_secrets = \
                 self.setup_vault_secrets(loader,
                                          vault_ids=new_vault_ids,
-                                         vault_password_files=new_vault_password_files,
+                                         vault_password_files=new_vault_password_files or list(context.CLIARGS['vault_password_files']),
                                          ask_vault_pass=context.CLIARGS['ask_vault_pass'],
-                                         create_new_password=True)
+                                         create_new_password=True,
+                                         encrypt_vault_id=new_vault_ids[0] if new_vault_ids else None)
 
             if not new_vault_secrets:
                 raise AnsibleOptionsError("A new vault password is required to use Ansible's Vault rekey")
